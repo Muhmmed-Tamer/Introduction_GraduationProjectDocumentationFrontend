@@ -3,7 +3,7 @@ import { store } from '../../Store/Store';
 import { PageIsLoading } from '../../Store/Actions/pageIsLoading';
 
 export const axiosinstance = axios.create({
-    baseURL: 'https://introductiongraduationprojectapi.runasp.net/',
+    baseURL: 'http://introductiongraduationprojectapi.runasp.net/',
     withCredentials: true
 });
 
