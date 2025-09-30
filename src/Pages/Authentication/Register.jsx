@@ -5,12 +5,15 @@ import { useNavigate } from "react-router";
 import { useSelector } from "react-redux";
 
 const Register = () => {
-    const selector = useSelector((state) => state);
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d\s]).{6,}$/;
-
     const navigator = useNavigate();
+    const selector = useSelector((state) => state);
     
+    
+    const isLoading = selector.PageIsLoading?.isLoading ?? false;
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d\s]).{6,}$/; 
+
     const [RegisterUser, SetRegisterUser] = useState({
         userFirstName: "",
         userLastName: "",
@@ -20,117 +23,125 @@ const Register = () => {
     });
 
     const [error, setError] = useState({
-        userFirstNameError: null,
-        userLastNameError: null,
-        userEmailError: null,
-        userPasswordError: null,
-        userConfirmPasswordError: null
+        userFirstNameError: "First Name Is Required",
+        userLastNameError: "Last Name Is Required",
+        userEmailError: "Email Is Required",
+        userPasswordError: "Password Is Required",
+        userConfirmPasswordError: "Confirm Password Is Required"
     });
 
+    
     useEffect(() => {
-        if (RegisterUser.userConfirmPassword && RegisterUser.userPassword) {
-            if (RegisterUser.userConfirmPassword !== RegisterUser.userPassword) {
-                setError(prev => ({ ...prev, userConfirmPasswordError: "Confirm Password Not Matched with Password" }));
-            } else {
-                setError(prev => ({ ...prev, userConfirmPasswordError: null }));
-            }
+        const password = RegisterUser.userPassword;
+        const confirmPassword = RegisterUser.userConfirmPassword;
+        
+        if (confirmPassword.length > 0 && password !== confirmPassword) {
+            setError(prev => ({ ...prev, userConfirmPasswordError: "Confirm Password Must Match Password" }));
+        } else if (confirmPassword.length > 0 && password === confirmPassword) {
+            setError(prev => ({ ...prev, userConfirmPasswordError: null }));
+        } else if (confirmPassword.length === 0 && password.length > 0) {
+            setError(prev => ({ ...prev, userConfirmPasswordError: "Confirm Password Is Required" }));
         }
     }, [RegisterUser.userPassword, RegisterUser.userConfirmPassword]);
 
+    
     const UserInputChanges = (event) => {
-        var targetInput = event.target;
-        switch (targetInput.name) {
-            case "userFirstName":
-                if (targetInput.value.length === 0) {
-                    setError({ ...error, userFirstNameError: "First Name Is Required" });
-                }
-                else if (targetInput.value.length < 3) {
-                    setError({ ...error, userFirstNameError: "Minimum Length Is 3 Characters" });
-                }
-                else {
-                    setError({ ...error, userFirstNameError: null })
-                    SetRegisterUser({ ...RegisterUser, userFirstName: targetInput.value });
-                }
-                break;
-            case "userLastName":
-                if (targetInput.value.length === 0) {
-                    setError({ ...error, userLastNameError: "Last Name Is Required" });
-                }
-                else if (targetInput.value.length < 3) {
-                    setError({ ...error, userLastNameError: "Minimum Length Is 3 Characters" });
-                }
-                else {
-                    setError({ ...error, userLastNameError: null })
-                    SetRegisterUser({ ...RegisterUser, userLastName: targetInput.value });
-                }
-                break;
-            case "userEmail":
-                if (targetInput.value.length === 0) {
-                    setError({ ...error, userEmailError: "Email Is Required" });
-                }
-                else if (!emailRegex.test(targetInput.value)) {
-                    setError({ ...error, userEmailError: "InCorrect Email Format (realEmail@gmail.com)" });
-                }
-                else {
-                    setError({ ...error, userEmailError: null });
-                    SetRegisterUser({ ...RegisterUser, userEmail: targetInput.value });
-                }
-                break;
-            case "userPassword":
-                if (targetInput.value.length === 0) {
-                    setError({ ...error, userPasswordError: "Password Is Required" })
-                }
-                else if (!passwordRegex.test(targetInput.value)) {
-                    setError({ ...error, userPasswordError: "Password Must Have at least one (UpperCase & LowerCase & Special Character & Number) With Minimum Length 6 Character" })
-                }
-                else {
-                    setError({ ...error, userPasswordError: null });
-                    SetRegisterUser({ ...RegisterUser, userPassword: targetInput.value });
-                }
-                break;
-            case "userConfirmPassword":
-                if (targetInput.value.length === 0) {
-                    setError({ ...error, userConfirmPasswordError: "Confirm Password Is Required" });
-                }
-                else if (targetInput.value !== RegisterUser.userPassword) {
-                    setError({ ...error, userConfirmPasswordError: "Confirm Password Not Matched with Password" });
-                }
-                else {
-                    setError({ ...error, userConfirmPasswordError: null })
-                    SetRegisterUser({ ...RegisterUser, userConfirmPassword: targetInput.value })
-                }
-                break;
-            default:
-                break;
-        }
-    };
+        const { name, value } = event.target;
+        let newError = null;
 
+        if (name === "userFirstName" || name === "userLastName") {
+            if (value.length === 0) {
+                newError = `${name.replace('user', '').replace('Name', ' Name')} Is Required`;
+            } else if (value.length < 3) {
+                newError = "Minimum Length Is 3 Characters";
+            }
+        } else if (name === "userEmail") {
+            if (value.length === 0) {
+                newError = "Email Is Required";
+            } else if (!emailRegex.test(value)) {
+                newError = "Invalid Email Format (e.g., realEmail@domain.com)";
+            }
+        } else if (name === "userPassword") {
+            if (value.length === 0) {
+                newError = "Password Is Required";
+            } else if (!passwordRegex.test(value)) {
+                newError = "Password Must Have at least one (UpperCase, LowerCase, Special Character, & Number) with a Minimum Length of 6 Characters";
+            }
+        } else if (name === "userConfirmPassword") {
+            if (value.length === 0) {
+                newError = "Confirm Password Is Required";
+            } else if (value !== RegisterUser.userPassword) {
+                newError = "Confirm Password Must Match Password";
+            }
+        }
+
+        setError(prevError => ({
+            ...prevError,
+            [`${name}Error`]: newError
+        }));
+        
+        SetRegisterUser(prevUser => ({
+            ...prevUser,
+            [name]: value
+        }));
+    };
+    
+    const isFormValid = Object.values(error).every(err => err === null) &&
+                        Object.values(RegisterUser).every(val => val.length > 0);
+
+    
     const handleRegisterSubmit = (e) => {
         e.preventDefault();
-        axiosinstance.post('api/Auth/Register', {
+
+        const termsChecked = e.target.elements.termsCheck.checked;
+
+        if (!isFormValid || !termsChecked || isLoading) {
+            Swal.fire({
+                icon: "warning",
+                title: "Please complete the form correctly and agree to terms.",
+                showConfirmButton: false,
+                timer: 2000
+            });
+            return;
+        }
+
+
+        const submissionData = {
             userFirstName: RegisterUser.userFirstName,
             userLastName: RegisterUser.userLastName,
             userEmail: RegisterUser.userEmail,
-            userPassword: RegisterUser.userPassword
-        }).then(function (response) {
+            userPassword: RegisterUser.userPassword 
+        };
+
+        axiosinstance.post('api/Auth/Register', submissionData)
+        .then(function (response) {
+
             Swal.fire({
                 position: "top-end",
                 icon: "success",
-                title: "Account Created Successfully",
+                title: "Account Created Successfully! Please log in.",
                 showConfirmButton: false,
-                timer: 1500
+                timer: 2000
             });
-            navigator("/auth/login")
-        }).catch(function (error) {
-            var responseErrors = [""];
-            responseErrors = error.response.data.errors;
-            var alertTitle = responseErrors.join(",");
+            navigator("/auth/login", { replace: true });
+        })
+        .catch(function (error) {
+            
+            let alertTitle = "An unexpected registration error occurred. Please try again.";
+            const responseErrors = error.response?.data?.errors;
+
+            if (Array.isArray(responseErrors) && responseErrors.length > 0) {
+                alertTitle = responseErrors.join(". "); 
+            } else if (error.message && error.message !== "Network Error") {
+                alertTitle = `Registration failed: ${error.message}`;
+            }
+
             Swal.fire({
                 position: "top-end",
                 icon: "error",
                 title: alertTitle,
                 showConfirmButton: false,
-                timer: 1500
+                timer: 3500 
             });
         });
     }
@@ -146,31 +157,9 @@ const Register = () => {
                                 <p className="text-muted mb-0">Sign up for a new account</p>
                             </div>
 
-                            <form method="post" onSubmit={(e) => { handleRegisterSubmit(e) }}>
-                                {
-                                    selector.PageIsLoading.isLoading===true ?(
-                                        <div className="loading-overlay" style={{
-                                            position: 'fixed',
-                                            top: 0,
-                                            left: 0,
-                                            width: '100%',
-                                            height: '100%',
-                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            zIndex: 9999
-                                        }}>
-                                            <div className="text-center">
-                                                <div className="spinner-grow text-primary" style={{width: '3rem', height: '3rem'}} role="status">
-                                                    <span className="visually-hidden">Loading...</span>
-                                                </div>
-                                                <p className="mt-2 text-dark fw-semibold">Logging in...</p>
-                                            </div>
-                                        </div>
-                                    ):
-                                    <></>
-                                }
+                            <form onSubmit={handleRegisterSubmit}>
+                                
+                                <fieldset disabled={isLoading}>
                                 <div className="row">
                                     <div className="col-md-6 mb-3">
                                         <label htmlFor="userFirstName" className="form-label fw-semibold text-dark">
@@ -181,7 +170,8 @@ const Register = () => {
                                             className={`form-control form-control-lg ${error.userFirstNameError ? 'is-invalid border-danger' : 'border-2'}`}
                                             id="userFirstName"
                                             name="userFirstName"
-                                            onChange={(e) => { UserInputChanges(e) }}
+                                            value={RegisterUser.userFirstName}
+                                            onChange={UserInputChanges}
                                             required
                                             minLength={3}
                                             placeholder="Enter your first name"
@@ -202,7 +192,8 @@ const Register = () => {
                                             className={`form-control form-control-lg ${error.userLastNameError ? 'is-invalid border-danger' : 'border-2'}`}
                                             id="userLastName"
                                             name="userLastName"
-                                            onChange={(e) => { UserInputChanges(e) }}
+                                            value={RegisterUser.userLastName}
+                                            onChange={UserInputChanges}
                                             required
                                             minLength={3}
                                             placeholder="Enter your last name"
@@ -224,7 +215,8 @@ const Register = () => {
                                         className={`form-control form-control-lg ${error.userEmailError ? 'is-invalid border-danger' : 'border-2'}`}
                                         id="userEmail"
                                         name="userEmail"
-                                        onChange={(e) => { UserInputChanges(e) }}
+                                        value={RegisterUser.userEmail}
+                                        onChange={UserInputChanges}
                                         required
                                         placeholder="Enter your email"
                                     />
@@ -247,13 +239,14 @@ const Register = () => {
                                         className={`form-control form-control-lg ${error.userPasswordError ? 'is-invalid border-danger' : 'border-2'}`}
                                         id="userPassword"
                                         name="userPassword"
-                                        onChange={(e) => { UserInputChanges(e) }}
+                                        value={RegisterUser.userPassword}
+                                        onChange={UserInputChanges}
                                         required
                                         minLength={6}
-                                        placeholder="Enter your password"
+                                        placeholder="Create a strong password"
                                     />
                                     <div className="form-text text-muted small mt-2">
-                                        Password must contain uppercase, lowercase, number, and special character.
+                                        Must contain uppercase, lowercase, number, and special character (min 6 chars).
                                     </div>
                                     {error.userPasswordError && (
                                         <div className="invalid-feedback d-block fw-semibold">
@@ -271,10 +264,11 @@ const Register = () => {
                                         className={`form-control form-control-lg ${error.userConfirmPasswordError ? 'is-invalid border-danger' : 'border-2'}`}
                                         id="userConfirmPassword"
                                         name="userConfirmPassword"
-                                        onChange={(e) => { UserInputChanges(e) }}
+                                        value={RegisterUser.userConfirmPassword}
+                                        onChange={UserInputChanges}
                                         required
                                         minLength={6}
-                                        disabled={RegisterUser.userPassword === "" || error.userPasswordError}
+                                        disabled={!RegisterUser.userPassword || !!error.userPasswordError} 
                                         placeholder="Confirm your password"
                                     />
                                     {error.userConfirmPasswordError && (
@@ -288,31 +282,28 @@ const Register = () => {
                                     <div className="form-check">
                                         <input className="form-check-input" type="checkbox" value="" id="termsCheck" required />
                                         <label className="form-check-label text-muted" htmlFor="termsCheck">
-                                            I agree to the terms and conditions
+                                            I agree to the <a href="/terms" className="text-primary fw-semibold">terms and conditions</a>
                                         </label>
                                         <div className="invalid-feedback">
                                             You must agree before submitting.
                                         </div>
                                     </div>
                                 </div>
+                                </fieldset>
 
                                 <button
                                     type="submit"
                                     className="btn btn-primary btn-lg w-100 py-3 fw-bold text-uppercase shadow-sm"
-                                    disabled={
-                                        error.userFirstNameError ||
-                                        error.userLastNameError ||
-                                        error.userEmailError ||
-                                        error.userPasswordError ||
-                                        error.userConfirmPasswordError ||
-                                        !RegisterUser.userFirstName ||
-                                        !RegisterUser.userLastName ||
-                                        !RegisterUser.userEmail ||
-                                        !RegisterUser.userPassword ||
-                                        !RegisterUser.userConfirmPassword
-                                    }
+                                    disabled={!isFormValid || isLoading}
                                 >
-                                    Create Account
+                                    {isLoading ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Registering...
+                                        </>
+                                    ) : (
+                                        "Create Account"
+                                    )}
                                 </button>
                             </form>
 

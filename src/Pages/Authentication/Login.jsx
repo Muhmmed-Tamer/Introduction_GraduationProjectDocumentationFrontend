@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Swal from 'sweetalert2'
+import Swal from 'sweetalert2';
 import { axiosinstance } from "../../Configuration/axios/axiosConfiguration";
 import { store } from "../../Store/Store";
 import { userIsLogin } from "../../Store/Actions/userIsLogin";
@@ -7,65 +7,79 @@ import { useSelector } from "react-redux";
 import { setAuthCookies } from "../../Configuration/Cookies/cookiesConfiguration";
 import { useNavigate } from "react-router";
 
+
 const Login = () => {
     const navigator = useNavigate();
     const selector = useSelector((state) => state);
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-    console.log('Redux Store:', selector);
-    console.log('PageIsLoading state:', selector.PageIsLoading);
+    
+    
+    const isLoading = selector.PageIsLoading?.isLoading ?? false;
 
     const [LoginUser, SetLoginUser] = useState({
         email: "",
         password: ""
     });
+    
+    
     const [error, SetError] = useState({
-        emailError: null,
-        passwordError: null
+        emailError: "Email is required", 
+        passwordError: "Password is required"
     });
 
-    const UserInputChanges = (event) => {
-        var targetInput = event.target;
-        switch (targetInput.name) {
-            case "email":
-                if (targetInput.value.length === 0) {
-                    SetError({ ...error, emailError: "Email is required" });
-                }
-                else if (!emailRegex.test(targetInput.value)) {
-                    SetError({ ...error, emailError: "Invalid email address" });
-                }
-                else {
-                    SetError({ ...error, emailError: null });
-                    SetLoginUser({ ...LoginUser, email: targetInput.value });
-                }
-                break;
-            case "password":
-                if (targetInput.value.length === 0) {
-                    SetError({ ...error, passwordError: "Password is required" });
-                }
-                else if (targetInput.value.length < 6) {
-                    SetError({ ...error, passwordError: "Password must be at least 6 characters" });
-                }
-                else {
-                    SetError({ ...error, passwordError: null });
-                    SetLoginUser({ ...LoginUser, password: targetInput.value });
-                }
-                break;
-            default:
-                break;
-        }
-    }
     
+    const isFormValid = !error.emailError && !error.passwordError && LoginUser.email && LoginUser.password;
 
-    const handleLoginSubmit = (e)=>{
+    
+    const UserInputChanges = (event) => {
+        const { name, value } = event.target;
+        let newError = null;
+
+        if (name === "email") {
+            if (value.length === 0) {
+                newError = "Email is required";
+            } else if (!emailRegex.test(value)) {
+                newError = "Invalid email address";
+            }
+        } else if (name === "password") {
+            if (value.length === 0) {
+                newError = "Password is required";
+            } else if (value.length < 6) {
+                newError = "Password must be at least 6 characters";
+            }
+        }
+        
+        SetError(prevError => ({ 
+            ...prevError, 
+            [`${name}Error`]: newError 
+        }));
+
+        SetLoginUser(prevLoginUser => ({
+            ...prevLoginUser,
+            [name]: value 
+        }));
+    };
+    
+    /**
+     */
+    const handleLoginSubmit = (e) => {
         e.preventDefault();
 
-        axiosinstance.post('api/Auth/Login', {
-            email: LoginUser.email,
-            password: LoginUser.password
-        })
+        if (!isFormValid || isLoading) {
+            Swal.fire({
+                icon: "warning",
+                title: "Please correct the form errors.",
+                showConfirmButton: false,
+                timer: 1500
+            });
+            return; 
+        }
+
+        
+        axiosinstance.post('api/Auth/Login', LoginUser)
         .then(function (response) {
-            setAuthCookies(response.data.data.accessToken,response.data.data.refreshToken,response.data.data.expiration);
+            setAuthCookies(response.data.data.accessToken, response.data.data.refreshToken, response.data.data.expiration);
+            
             Swal.fire({
                 position: "top-end",
                 icon: "success",
@@ -73,21 +87,29 @@ const Login = () => {
                 showConfirmButton: false,
                 timer: 1500
             });
-        store.dispatch(userIsLogin(true));
-        navigator("/home",{replace:true});
+            
+            store.dispatch(userIsLogin(true));
+            navigator("/home", {replace: true});
         })
         .catch(function (error) {
-        var responseErrors = [""];
-        responseErrors = error.response?.data.errors;
-        var alertTitle = responseErrors.join(",");
-        Swal.fire({
-            position: "top-end",
-            icon: "error",
-            title: alertTitle,
-            showConfirmButton: false,
-            timer: 1500
+            
+            let alertTitle = "An unexpected error occurred. Please try again.";
+            const responseErrors = error.response?.data?.errors;
+
+            if (Array.isArray(responseErrors) && responseErrors.length > 0) {
+                alertTitle = responseErrors.join(". "); 
+            } else if (error.message && error.message !== "Network Error") {
+                alertTitle = `Login failed: ${error.message}`;
+            }
+
+            Swal.fire({
+                position: "top-end",
+                icon: "error",
+                title: alertTitle,
+                showConfirmButton: false,
+                timer: 3000 
+            });
         });
-    });
     }
 
     return (
@@ -101,47 +123,23 @@ const Login = () => {
                                 <p className="text-muted mb-0">Login to your account</p>
                             </div>
 
-                            <form method="post" onSubmit={(e)=>{
-                                handleLoginSubmit(e);
-                            }}>
-                                {
-                                    selector.PageIsLoading.isLoading===true ?(
-                                        <div className="loading-overlay" style={{
-                                            position: 'fixed',
-                                            top: 0,
-                                            left: 0,
-                                            width: '100%',
-                                            height: '100%',
-                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            zIndex: 9999
-                                        }}>
-                                            <div className="text-center">
-                                                <div className="spinner-grow text-primary" style={{width: '3rem', height: '3rem'}} role="status">
-                                                    <span className="visually-hidden">Loading...</span>
-                                                </div>
-                                                <p className="mt-2 text-dark fw-semibold">Logging in...</p>
-                                            </div>
-                                        </div>
-                                    ):
-                                    <></>
-                                }
+                            <form onSubmit={handleLoginSubmit}>
                                 
                                 <div className="mb-4">
-                                    <label htmlFor="exampleInputEmail1" className="form-label fw-semibold text-dark">
+                                    <label htmlFor="emailInput" className="form-label fw-semibold text-dark">
                                         Email Address
                                     </label>
                                     <input 
                                         type="email" 
                                         className={`form-control form-control-lg ${error.emailError ? 'is-invalid border-danger' : 'border-2'}`}
-                                        id="exampleInputEmail1" 
+                                        id="emailInput" 
                                         aria-describedby="emailHelp" 
                                         name="email" 
-                                        onChange={(e) => { UserInputChanges(e) }} 
+                                        value={LoginUser.email}
+                                        onChange={UserInputChanges} 
                                         required 
                                         placeholder="Enter your email"
+                                        disabled={isLoading}
                                     />
                                     <div id="emailHelp" className="form-text text-muted small mt-2">
                                         We'll never share your email with anyone else.
@@ -154,18 +152,20 @@ const Login = () => {
                                 </div>
 
                                 <div className="mb-4">
-                                    <label htmlFor="exampleInputPassword1" className="form-label fw-semibold text-dark">
+                                    <label htmlFor="passwordInput" className="form-label fw-semibold text-dark">
                                         Password
                                     </label>
                                     <input 
                                         type="password" 
                                         className={`form-control form-control-lg ${error.passwordError ? 'is-invalid border-danger' : 'border-2'}`}
-                                        id="exampleInputPassword1" 
+                                        id="passwordInput" 
                                         name="password" 
-                                        onChange={(e) => { UserInputChanges(e) }} 
+                                        value={LoginUser.password}
+                                        onChange={UserInputChanges} 
                                         required 
                                         minLength={6}
                                         placeholder="Enter your password"
+                                        disabled={isLoading}
                                     />
                                     {error.passwordError && (
                                         <div className="invalid-feedback d-block fw-semibold">
@@ -176,19 +176,30 @@ const Login = () => {
 
                                 <div className="d-flex justify-content-between align-items-center mb-4">
                                     <div className="form-check">
-                                        <input type="checkbox" className="form-check-input" id="rememberMe" />
+                                        <input type="checkbox" className="form-check-input" id="rememberMe" disabled={isLoading} />
                                         <label className="form-check-label text-muted" htmlFor="rememberMe">
                                             Remember me
                                         </label>
                                     </div>
+                                    {/* Added Forgot Password Link for better UX */}
+                                    <a href="/auth/forgot-password" className="text-decoration-none small text-primary fw-semibold">
+                                        Forgot password?
+                                    </a>
                                 </div>
 
                                 <button 
                                     type="submit" 
                                     className="btn btn-primary btn-lg w-100 py-3 fw-bold text-uppercase shadow-sm"
-                                    disabled={error.emailError || error.passwordError || !LoginUser.email || !LoginUser.password}
+                                    disabled={!isFormValid || isLoading}
                                 >
-                                    Login
+                                    {isLoading ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Logging In...
+                                        </>
+                                    ) : (
+                                        "Login"
+                                    )}
                                 </button>
                             </form>
 
